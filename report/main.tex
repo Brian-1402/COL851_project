@@ -1,0 +1,276 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx} % Required for including plots
+\usepackage{booktabs} % Required for professional-looking tables
+\usepackage{url}      % Required for URLs in references
+\usepackage[margin=1in]{geometry} % Standard margins
+\usepackage{float}    % For better control of figures and tables
+\usepackage{hyperref} % For hyperlinks in references and TOC
+\usepackage{subcaption} % For arranging subfigures
+
+% Define custom commands for section titles (optional, but good for consistency)
+\newcommand{\projecttitle}{COL851 Course Project}
+
+\title{\textbf{\projecttitle}}
+\author{Kartik and Brian}
+
+\begin{document}
+
+\maketitle
+
+
+% Add a table of contents
+\clearpage
+\tableofcontents
+\clearpage
+% ----------------------------------------------------------------------
+% 3. Introduction
+% ----------------------------------------------------------------------
+\section{Introduction}
+\label{sec:introduction}
+
+\subsection{Student details}
+
+Kartik Meena, 2021CS50618; Brian Sajeev Kattikat, 2021CS50609
+
+\subsection{Project Objectives}
+The primary goals of this project are:
+\begin{enumerate}
+    \item To deploy and evaluate the zero-shot performance of the Chronos LLM for PM forecasting on datasets from **Gurgaon (City A)** and **Patna (City B)**.
+    \item To perform a parametric study on the effect of **context length** (2, 4, 8, 10, 14 days) and **forecasting horizon** (4, 8, 12, 24, 48 hours) on accuracy (RMSE).
+    \item To benchmark different feasible **pre-trained model variants** (\texttt{chronos-t5-mini}, \texttt{chronos-t5-small}, \texttt{chronos-bolt-small}) while adhering to the constraint of **laptop CPU** computation.
+    \item To identify the overall best-performing configuration (model, context, and horizon) based on the combined **Average RMSE** for both cities.
+\end{enumerate}
+
+% ----------------------------------------------------------------------
+% 4. Methodology
+% ----------------------------------------------------------------------
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{Data Description and Pre-processing}
+The time series data comprises PM concentration records for Gurgaon (City A) and Patna (City B). For this experiment, only two columns were utilized: **Column 1 (Time Index)** and **Column 5 (PM concentration)**. The frequency of the data is assumed to be hourly. The data was partitioned into historical context windows and future prediction windows for rolling-window evaluation, using the **Root Mean Squared Error (RMSE)** as the accuracy metric.
+
+\subsection{Chronos Model and Constraints}
+The \textbf{Amazon Chronos} model was used in its **Zero-Shot** mode. Due to the **laptop CPU constraint**, three model variants were tested to identify the best trade-off between size and performance:
+\begin{itemize}
+    \item \texttt{amazon/chronos-t5-mini}
+    \item \texttt{amazon/chronos-t5-small}
+    \item \texttt{amazon/chronos-bolt-small}
+\end{itemize}
+
+% ----------------------------------------------------------------------
+% 5. Results
+% ----------------------------------------------------------------------
+\section{Results}
+\label{sec:results}
+
+\subsection{Performance Summary on Gurgaon (City A)}
+For Gurgaon (City A), the overall lowest RMSE was achieved at the shortest horizon by the \texttt{chronos-bolt-small} model. The feasibility check allowed for testing three variants: \texttt{chronos-t5-mini}, \texttt{chronos-t5-small}, and \texttt{chronos-bolt-small}.
+
+\begin{table}[H]
+    \centering
+    \caption{Summary of Best Zero-Shot Performance on Gurgaon Data (City A)}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Model} & \textbf{Best Ctx (days)} & \textbf{Min RMSE (24h)} & \textbf{Best Hrz (hrs)} & \textbf{Min RMSE (10d Ctx)} \\
+        \midrule
+        \texttt{t5-mini} & 10 & 42.23 & 4 & 26.42 \\
+        \texttt{t5-small} & 4 & \textbf{40.40} & 4 & 26.34 \\
+        \texttt{bolt-small} & 10 & 42.32 & 4 & \textbf{25.74} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:best_gurgaon}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/gurgaon_context_amazon_chronos-t5-mini.png}
+        \caption{\texttt{chronos-t5-mini} Context}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/gurgaon_context_amazon_chronos-t5-small.png}
+        \caption{\texttt{chronos-t5-small} Context}
+    \end{subfigure}
+    
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/gurgaon_context_amazon_chronos-bolt-small.png}
+        \caption{\texttt{chronos-bolt-small} Context}
+    \end{subfigure}
+    \caption{Average RMSE for PM forecasting (24h horizon) with varying context lengths (Gurgaon).}
+    \label{fig:context_plot_gurgaon}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/gurgaon_horizon_amazon_chronos-t5-mini.png}
+        \caption{\texttt{chronos-t5-mini} Horizon}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/gurgaon_horizon_amazon_chronos-t5-small.png}
+        \caption{\texttt{chronos-t5-small} Horizon}
+    \end{subfigure}
+    
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/gurgaon_horizon_amazon_chronos-bolt-small.png}
+        \caption{\texttt{chronos-bolt-small} Horizon}
+    \end{subfigure}
+    \caption{Average RMSE for PM forecasting (10-day context) with varying forecasting horizons (Gurgaon).}
+    \label{fig:horizon_plot_gurgaon}
+\end{figure}
+
+\clearpage
+
+\subsection{Performance Summary on Patna (City B)}
+For Patna (City B), the \texttt{chronos-bolt-small} model also delivered the lowest RMSE, achieving slightly better overall performance than in Gurgaon.
+
+\begin{table}[H]
+    \centering
+    \caption{Summary of Best Zero-Shot Performance on Patna Data (City B)}
+    \begin{tabular}{lcccc}
+        \toprule
+        \textbf{Model} & \textbf{Best Ctx (days)} & \textbf{Min RMSE (24h)} & \textbf{Best Hrz (hrs)} & \textbf{Min RMSE (10d Ctx)} \\
+        \midrule
+        \texttt{t5-mini} & 4 & 36.92 & 4 & 25.78 \\
+        \texttt{t5-small} & 4 & 36.67 & 4 & 25.09 \\
+        \texttt{bolt-small} & 4 & \textbf{35.49} & 4 & \textbf{24.88} \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:best_patna}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/patna_context_amazon_chronos-t5-mini.png}
+        \caption{\texttt{chronos-t5-mini} Context}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/patna_context_amazon_chronos-t5-small.png}
+        \caption{\texttt{chronos-t5-small} Context}
+    \end{subfigure}
+    
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/patna_context_amazon_chronos-bolt-small.png}
+        \caption{\texttt{chronos-bolt-small} Context}
+    \end{subfigure}
+    \caption{Average RMSE for PM forecasting (24h horizon) with varying context lengths (Patna).}
+    \label{fig:context_plot_patna}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/patna_horizon_amazon_chronos-t5-mini.png}
+        \caption{\texttt{chronos-t5-mini} Horizon}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/patna_horizon_amazon_chronos-t5-small.png}
+        \caption{\texttt{chronos-t5-small} Horizon}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.55\textwidth}
+        \includegraphics[width=\textwidth]{images/patna_horizon_amazon_chronos-bolt-small.png}
+        \caption{\texttt{chronos-bolt-small} Horizon}
+    \end{subfigure}
+    \caption{Average RMSE for PM forecasting (10-day context) with varying forecasting horizons (Patna).}
+    \label{fig:horizon_plot_patna}
+\end{figure}
+
+\clearpage
+
+% ----------------------------------------------------------------------
+% 6. Discussion
+% ----------------------------------------------------------------------
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Optimal Configuration: Best Average RMSE for Both Cities}
+
+The comprehensive analysis across both cities reveals a clear superior zero-shot configuration:
+
+\begin{itemize}
+    \item \textbf{Best Model Variant:} **\texttt{amazon/chronos-bolt-small}** (Min RMSE $\approx$ 24.88)
+    \item \textbf{Best Forecasting Horizon:} **4 hours**
+    \item \textbf{Best Context Length:} **4 days**
+\end{itemize}
+
+The **\texttt{chronos-bolt-small}** model consistently delivered the lowest RMSE in the most predictable scenario (4-hour horizon) for both cities, slightly outperforming the T5-based variants. The optimal context length, which minimizes RMSE for the challenging 24-hour horizon, was **4 days** for Patna, and either 4 or 10 days for Gurgaon depending on the model. This suggests that for highly non-linear data like PM, a relatively short context (around 4 days) is often sufficient to capture relevant daily/short-term patterns without adding unnecessary noise or computational load.
+
+\subsection{Comparison between Cities}
+\begin{itemize}
+    \item \textbf{Overall Accuracy:} Patna (City B) achieved a slightly lower overall minimum RMSE ($\approx \mathbf{24.88}$) compared to Gurgaon (City A, $\approx \mathbf{25.74}$). This indicates that the PM time series in Patna may exhibit slightly clearer or more stable patterns that the pre-trained Chronos model can identify in a zero-shot setting.
+    \item \textbf{Context Length Preference:} Patna consistently favored a **4-day** context across all models for the 24-hour prediction task, while Gurgaon's best context was either 4 or 10 days. This implies that Patna's relevant forecasting signals may be concentrated in the immediate past, whereas Gurgaon's patterns might occasionally benefit from capturing weekly or 10-day cycles.
+    \item \textbf{Horizon Sensitivity:} Both cities demonstrated high sensitivity to the forecasting horizon. RMSE values increased steeply as the horizon moved from 4 hours to 48 hours, highlighting the inherent difficulty of zero-shot, univariate forecasting for volatile air quality data in the absence of co-variates.
+\end{itemize}
+
+
+% ----------------------------------------------------------------------
+% 7. Performance Analysis and System Metrics (Part 2)
+% ----------------------------------------------------------------------
+\section{Performance and Resource Analysis}
+\label{sec:performance}
+
+\subsection{Measurement Setup}
+Performance metrics were collected using \texttt{psutil} and Prometheus during zero-shot Chronos forecasts on CPU.  
+Each configuration measured:
+\begin{itemize}
+    \item Average and 95th-percentile inference latency
+    \item Throughput (samples/sec)
+    \item CPU utilization (\%)
+    \item Memory utilization (\%)
+\end{itemize} 
+Experiments varied context length (2–14 days) and horizon (4–48 h) across three models.
+
+\subsection{Observed Performance Trends}
+\begin{itemize}
+    \item \textbf{Latency:} Increased with longer context and horizon. For Gurgaon (\texttt{t5-mini}), average latency rose from 0.35 s (2 days) to 0.60 s (14 days).
+    \item \textbf{Throughput:} Inversely related to latency; \texttt{chronos-bolt-small} reached $\approx$ 37–42 samples/s.
+    \item \textbf{CPU Utilization:} Averaged 55–65 \% across all settings, peaking near 76 \% for longest contexts.
+\end{itemize}
+
+\subsection{Quantitative Highlights}
+\begin{table}[H]
+    \centering
+    \caption{Performance Summary (10-day context, 24-hour horizon, CPU)}
+    \begin{tabular}{lcccccc}
+        \toprule
+        \textbf{Model} & \textbf{City} & \textbf{Latency (s)} & \textbf{Throughput} & \textbf{CPU (\%)} & \textbf{MEM (\%)} & \textbf{RMSE} \\
+        \midrule
+        \texttt{t5-mini}  & Gurgaon & 0.50 & 1.98 & 56.7 & 91.2 & 115.75 \\
+        \texttt{t5-small} & Gurgaon & 0.79 & 1.26 & 57.5 & 92.6 & 116.88 \\
+        \texttt{bolt-small} & Gurgaon & 0.027 & 37.04 & 61.1 & 92.8 & 262.82 \\
+        \texttt{t5-mini}  & Patna & 0.50 & 1.99 & 58.1 & 91.6 & 163.17 \\
+        \texttt{t5-small} & Patna & 0.78 & 1.28 & 57.4 & 92.3 & 157.03 \\
+        \texttt{bolt-small} & Patna & 0.025 & 40.73 & 55.0 & 92.9 & 117.11 \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:perf_summary}
+\end{table}
+
+\subsection{Visualizations}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{outputs_perf/latency_avg_vs_context.png}
+    \caption{Average latency vs. context length.}
+    \label{fig:latency_plot}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{outputs_perf/cpu_util_vs_context.png}
+    \caption{CPU utilization vs. context length.}
+    \label{fig:cpu_util_plot}
+\end{figure}
+
+
+
+\end{document}

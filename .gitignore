@@ -10,6 +10,6 @@ wheels/
 .venv
 
 *.csv
-*.png
+# *.png
 data/
 .vscode/

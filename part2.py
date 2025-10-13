@@ -40,6 +40,7 @@ parser.add_argument("--data_gurgaon", default="df_ggn_covariates.csv")
 parser.add_argument("--data_patna", default="df_patna_covariates.csv")
 parser.add_argument("--loop", type=int, default=10)
 parser.add_argument("--prometheus_port", type=int, default=8000)
+parser.add_argument("--plot", action="store_true", help="Enable performance plotting")
 args = parser.parse_args()
 
 os.makedirs("outputs_perf", exist_ok=True)
@@ -167,30 +168,69 @@ df.to_csv(csv_path, index=False)
 print(f"\nAll performance metrics saved to: {csv_path}")
 
 # ===============================================================
-# Step: Plot Performance Metrics
+# Optional Plotting
 # ===============================================================
-import matplotlib.pyplot as plt
+if args.plot:
+    import matplotlib.pyplot as plt
 
-def plot_perf_metrics(df):
-    metrics = ["latency_avg", "latency_p95", "throughput", "cpu_util", "mem_util"]
-    os.makedirs("outputs_perf", exist_ok=True)
+    def plot_perf_metrics(df):
+        os.makedirs("outputs_perf", exist_ok=True)
+        metrics = ["latency_avg", "latency_p95", "throughput", "cpu_util", "mem_util"]
 
-    for metric in metrics:
-        plt.figure(figsize=(8, 5))
-        for city in df["city"].unique():
-            subset = df[df["city"] == city]
-            plt.scatter(subset["context_hours"], subset[metric], label=f"{city}-context", marker='o')
-            plt.scatter(subset["horizon_hours"], subset[metric], label=f"{city}-horizon", marker='x')
-        plt.xlabel("Context/Horizon (hours)")
-        plt.ylabel(metric.replace("_", " ").title())
-        plt.title(f"{metric.replace('_', ' ').title()} vs Context/Horizon")
-        plt.grid(True)
-        plt.legend()
-        plt.tight_layout()
-        path = f"outputs_perf/{metric}_plot.png"
-        plt.savefig(path)
-        plt.close()
-        print(f"Saved: {path}")
+        for metric in metrics:
+            # --- Plot vs Context Length (fixed 24h horizon)
+            plt.figure(figsize=(8, 5))
+            for city in df["city"].unique():
+                for model in df["model"].unique():
+                    subset = df[
+                        (df["city"] == city)
+                        & (df["horizon_hours"] == 24)
+                        & (df["model"] == model)
+                    ].sort_values("context_hours")
+                    if len(subset) > 0:
+                        plt.plot(
+                            subset["context_hours"],
+                            subset[metric],
+                            marker="o",
+                            label=f"{city}-{model.split('/')[-1]}"
+                        )
+            plt.xlabel("Context length (hours)")
+            plt.ylabel(metric.replace("_", " ").title())
+            plt.title(f"{metric.replace('_', ' ').title()} vs Context Length (24h horizon)")
+            plt.grid(True)
+            plt.legend(fontsize=8)
+            plt.tight_layout()
+            path_ctx = f"outputs_perf/{metric}_vs_context.png"
+            plt.savefig(path_ctx)
+            plt.close()
 
-plot_perf_metrics(df)
-print("Performance plots saved under outputs_perf/")
+            # --- Plot vs Horizon (fixed 10-day context)
+            plt.figure(figsize=(8, 5))
+            for city in df["city"].unique():
+                for model in df["model"].unique():
+                    subset = df[
+                        (df["city"] == city)
+                        & (df["context_hours"] == 10 * 24)
+                        & (df["model"] == model)
+                    ].sort_values("horizon_hours")
+                    if len(subset) > 0:
+                        plt.plot(
+                            subset["horizon_hours"],
+                            subset[metric],
+                            marker="o",
+                            label=f"{city}-{model.split('/')[-1]}"
+                        )
+            plt.xlabel("Forecast horizon (hours)")
+            plt.ylabel(metric.replace("_", " ").title())
+            plt.title(f"{metric.replace('_', ' ').title()} vs Horizon (10-day context)")
+            plt.grid(True)
+            plt.legend(fontsize=8)
+            plt.tight_layout()
+            path_h = f"outputs_perf/{metric}_vs_horizon.png"
+            plt.savefig(path_h)
+            plt.close()
+
+            print(f"Saved plots: {path_ctx}, {path_h}")
+
+    plot_perf_metrics(df)
+    print("Line performance plots saved under outputs_perf/")
