@@ -46,8 +46,12 @@ args = parser.parse_args()
 os.makedirs("outputs_perf", exist_ok=True)
 csv_path = "outputs_perf/perf_metrics.csv"
 
+
+import os
+print(f"Current process PID: {os.getpid()}")
+
 # ===============================================================
-# Prometheus metric registration (Option B — separate scrape job)
+# Prometheus metric registration
 # ===============================================================
 METRICS = {
     "latency_avg": Gauge("latency_avg_seconds", "Average inference latency", labelnames=["job"]),
@@ -98,49 +102,57 @@ def forecast(pipeline, context, horizon):
     return mean.squeeze().numpy()
 
 def run_forecasting_perf(series, pipeline, context_len, horizon, loops, city, model):
-    latencies = []
-    rmses = []
+    latencies, rmses, cpu_usages, mem_usages = [], [], [], []
+    job_label = f"{city}_{model.replace('/', '_')}"
 
     print(f"\nRunning: City={city}, Model={model}, Context={context_len}h, Horizon={horizon}h, Loops={loops}")
     for i in range(loops):
         context = series[-context_len:]
-        true = series[-(context_len + horizon):-context_len]  # simulate next horizon
+        true = series[-(context_len + horizon):-context_len]
         start_t = time.time()
         pred = forecast(pipeline, context, horizon)
         latency = time.time() - start_t
         latencies.append(latency)
         rmse = np.sqrt(mean_squared_error(true[:len(pred)], pred))
         rmses.append(rmse)
-        print(f"  Loop {i+1}/{loops}: latency={latency:.3f}s, rmse={rmse:.4f}")
 
-    avg_lat = np.mean(latencies)
-    p95_lat = np.percentile(latencies, 95)
-    thr = loops / np.sum(latencies)
-    cpu, mem = record_system_metrics()
+        cpu, mem = record_system_metrics()
+        cpu_usages.append(cpu)
+        mem_usages.append(mem)
 
-    job_label = f"{city}_{model.replace('/', '_')}"
-    METRICS["latency_avg"].labels(job=job_label).set(avg_lat)
-    METRICS["latency_p95"].labels(job=job_label).set(p95_lat)
-    METRICS["throughput"].labels(job=job_label).set(thr)
-    METRICS["cpu_util"].labels(job=job_label).set(cpu)
-    METRICS["mem_util"].labels(job=job_label).set(mem)
+        avg_lat = np.mean(latencies)
+        p95_lat = np.percentile(latencies, 95)
+        thr = (i + 1) / np.sum(latencies)
 
-    print(f"Summary → Avg latency={avg_lat:.3f}s, P95={p95_lat:.3f}s, "
-          f"Throughput={thr:.3f}/s, CPU={cpu:.1f}%, MEM={mem:.1f}%")
+        METRICS["latency_avg"].labels(job=job_label).set(avg_lat)
+        METRICS["latency_p95"].labels(job=job_label).set(p95_lat)
+        METRICS["throughput"].labels(job=job_label).set(thr)
+        METRICS["cpu_util"].labels(job=job_label).set(cpu)
+        METRICS["mem_util"].labels(job=job_label).set(mem)
 
-    return {
+        print(f"  Loop {i+1}/{loops}: latency={latency:.3f}s, rmse={rmse:.4f}, cpu={cpu:.1f}%, mem={mem:.1f}%")
+
+    summary = {
         "city": city,
         "model": model,
         "context_hours": context_len,
         "horizon_hours": horizon,
         "loops": loops,
-        "latency_avg": avg_lat,
-        "latency_p95": p95_lat,
-        "throughput": thr,
-        "cpu_util": cpu,
-        "mem_util": mem,
+        "latency_avg": np.mean(latencies),
+        "latency_p95": np.percentile(latencies, 95),
+        "throughput": loops / np.sum(latencies),
+        "cpu_util_avg": np.mean(cpu_usages),
+        "mem_util_avg": np.mean(mem_usages),
         "rmse_avg": np.mean(rmses),
     }
+
+    print(
+        f"Summary → Avg latency={summary['latency_avg']:.3f}s, "
+        f"P95={summary['latency_p95']:.3f}s, Throughput={summary['throughput']:.3f}/s, "
+        f"CPU avg={summary['cpu_util_avg']:.1f}%, MEM avg={summary['mem_util_avg']:.1f}%"
+    )
+
+    return summary
 
 # ===============================================================
 # Main experiment loop
@@ -175,7 +187,7 @@ if args.plot:
 
     def plot_perf_metrics(df):
         os.makedirs("outputs_perf", exist_ok=True)
-        metrics = ["latency_avg", "latency_p95", "throughput", "cpu_util", "mem_util"]
+        metrics = ["latency_avg", "latency_p95", "throughput", "cpu_util_avg", "mem_util_avg"]
 
         for metric in metrics:
             # --- Plot vs Context Length (fixed 24h horizon)

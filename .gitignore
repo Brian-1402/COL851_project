@@ -13,3 +13,4 @@ wheels/
 # *.png
 data/
 .vscode/
+outputs_perf/

@@ -71,7 +71,7 @@ def compute_rmse(pipeline, series, context_len_hours, horizon_hours):
     start_time = time.time()
     series = series.to_numpy()
     total = len(series)
-    step = horizon_hours*4
+    step = horizon_hours
     rmses = []
     for i in range(context_len_hours, total - horizon_hours, step):
         context = series[i - context_len_hours:i]
