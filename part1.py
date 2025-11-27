@@ -7,6 +7,7 @@ from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import time
 import sys
+from tqdm import tqdm
 
 # ===============================================================
 # Step 0: Setup Output Directory & Logging
@@ -62,8 +63,8 @@ def load_pipeline(model_variant):
         torch_dtype=torch.float32
     )
 
-def forecast(pipeline, series, context_len, horizon):
-    context = torch.tensor(series[-context_len:], dtype=torch.float32)
+def forecast(pipeline, context, horizon):
+    context = torch.tensor(context, dtype=torch.float32)
     _, mean = pipeline.predict_quantiles(context, prediction_length=horizon, quantile_levels=[0.5])
     return mean.squeeze().numpy()
 
@@ -73,10 +74,10 @@ def compute_rmse(pipeline, series, context_len_hours, horizon_hours):
     total = len(series)
     step = horizon_hours
     rmses = []
-    for i in range(context_len_hours, total - horizon_hours, step):
+    for i in tqdm(range(context_len_hours, total - horizon_hours, step)):
         context = series[i - context_len_hours:i]
         true = series[i:i + horizon_hours]
-        pred = forecast(pipeline, context, len(context), horizon_hours)
+        pred = forecast(pipeline, context, horizon_hours)
         rmses.append(np.sqrt(mean_squared_error(true, pred)))
     elapsed = time.time() - start_time
     log_print(f"compute_rmse(context={context_len_hours}h, horizon={horizon_hours}h) took {elapsed/60:.2f} min")
