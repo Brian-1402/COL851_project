@@ -10,7 +10,6 @@ import sys
 from tqdm import tqdm
 
 from log import setup_logger
-import log
 
 output_dir = "outputs/part3"
 os.makedirs("outputs", exist_ok=True)
@@ -106,29 +105,56 @@ def plot_cdf(results, city_name, output_dir="outputs"):
     plt.close()
     logger.info(f"Saved CDF plot to {cdf_path}")
 
-def plot_rmse(results, city_name, output_dir="outputs"):
-    # --- Plot 2: Time Series Analysis ---
-    # We use subplots to show PM values and RMSE side-by-side or stacked
+def plot_rmse(results, city_name, output_dir="outputs", bucket_size_hours=24):
+    """
+    Plots time series of Ground Truth, Forecast, and RMSE.
+    Aggregates data by `bucket_size_hours` to reduce plot density.
+    """
+    # 1. Prepare DataFrames for resampling
+    df_ts = pd.DataFrame({
+        "date": results["pred_dates"],
+        "ground_truth": results["ground_truth"],
+        "forecast": results["preds"]
+    })
+    df_ts["date"] = pd.to_datetime(df_ts["date"])
+    df_ts.set_index("date", inplace=True)
+
+    df_rmse = pd.DataFrame({
+        "date": results["rmse_dates"],
+        "rmse": results["rmses"]
+    })
+    df_rmse["date"] = pd.to_datetime(df_rmse["date"])
+    df_rmse.set_index("date", inplace=True)
+
+    # 2. Resample (Average over bucket_size_hours)
+    resample_rule = f"{bucket_size_hours}h"
+    
+    # We use .mean() to average values within the bucket
+    df_ts_agg = df_ts.resample(resample_rule).mean()
+    df_rmse_agg = df_rmse.resample(resample_rule).mean()
+
+    # 3. Plot
     fig, ax1 = plt.subplots(figsize=(12, 6))
 
-    # X-axis: Dates
-    # Plot Ground Truth & Forecast on Left Y-axis
-    ax1.plot(results["pred_dates"], results["ground_truth"], label="Ground Truth", color="black", alpha=0.6, linewidth=1)
-    ax1.plot(results["pred_dates"], results["preds"], label="Forecast", color="blue", alpha=0.8, linewidth=1)
-    ax1.set_xlabel("Test Date")
+    # -- Primary Y-axis: PM 2.5 --
+    ax1.plot(df_ts_agg.index, df_ts_agg["ground_truth"], label="Ground Truth", color="black", alpha=0.6, linewidth=1.5)
+    ax1.plot(df_ts_agg.index, df_ts_agg["forecast"], label="Forecast", color="blue", alpha=0.8, linewidth=1.5)
+    
+    ax1.set_xlabel(f"Date (Avg over {bucket_size_hours}h)")
     ax1.set_ylabel("PM 2.5 Concentration", color="black")
     ax1.tick_params(axis='y', labelcolor="black")
     ax1.legend(loc="upper left")
 
-    # Plot RMSE on Right Y-axis
-    # We align RMSE with the start of the window
+    # -- Secondary Y-axis: RMSE --
     ax2 = ax1.twinx()
-    ax2.plot(results["rmse_dates"], results["rmses"], label="Window RMSE", color="red", linestyle="--", alpha=0.5)
+    # Handle case where RMSE might be sparse or NaN after resampling if no windows aligned perfectly (unlikely with mean)
+    ax2.plot(df_rmse_agg.index, df_rmse_agg["rmse"], label="Window RMSE", color="red", linestyle="--", alpha=0.5, linewidth=1.5)
+    
     ax2.set_ylabel("RMSE", color="red")
     ax2.tick_params(axis='y', labelcolor="red")
-    # ax2.legend(loc="upper right") 
+    # ax2.legend(loc="upper right") # Optional
 
-    plt.title(f"Forecast Analysis: Ground Truth vs Forecast vs RMSE ({city_name})")
+    plt.title(f"Forecast Analysis: {city_name} (Aggregated {bucket_size_hours}h)")
     plt.tight_layout()
     
     ts_path = os.path.join(output_dir, f"{city_name}_forecast_analysis.png")
