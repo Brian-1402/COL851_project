@@ -1,3 +1,17 @@
+"""
+Part 3 compute
+
+Input:
+    ./df_patna_covariates.csv
+    ./df_ggn_covariates.csv (maybe)
+    (Requires columns: "From Date", "calibPM")
+
+Outputs (saved to ./outputs/part3/):
+    1. patna_predictions.csv  - [timestamp, ground_truth, forecast]
+    2. patna_metrics.csv      - [window_start, rmse]
+    3. patna_performance.csv  - [window_start, latency_sec, throughput_preds_per_sec]
+    4. log/                   - Execution logs
+"""
 import argparse
 import pandas as pd
 import numpy as np
@@ -36,6 +50,7 @@ def run_inference(pipeline, df, context_len_hours, horizon_hours):
 
     metrics_data = [] 
     preds_data = []   
+    perf_data = []
 
     logger.info(f"Starting inference... Series len: {total}, Context: {context_len_hours}, Horizon: {horizon_hours}")
 
@@ -44,7 +59,21 @@ def run_inference(pipeline, df, context_len_hours, horizon_hours):
         true_window = series[i : i + horizon_hours]
         true_dates = dates[i : i + horizon_hours]
         
+        # Performance measurement
+        t_start = time.perf_counter()
         pred_window = forecast(pipeline, context, horizon_hours)
+        t_end = time.perf_counter()
+        
+        latency = t_end - t_start
+        # Throughput as instances (prediction windows) per second
+        throughput = 1.0 / latency if latency > 0 else 0.0
+
+        perf_data.append({
+            "window_start": dates[i],
+            "latency_sec": latency,
+            "throughput_preds_per_sec": throughput
+        })
+
         window_rmse = np.sqrt(mean_squared_error(true_window, pred_window))
         
         metrics_data.append({
@@ -62,7 +91,7 @@ def run_inference(pipeline, df, context_len_hours, horizon_hours):
     elapsed = time.time() - start_time
     logger.info(f"Inference completed in {elapsed/60:.2f} min.")
     
-    return pd.DataFrame(preds_data), pd.DataFrame(metrics_data)
+    return pd.DataFrame(preds_data), pd.DataFrame(metrics_data), pd.DataFrame(perf_data)
 
 def main():
     global logger
@@ -103,7 +132,7 @@ def main():
     
     pipeline = load_pipeline(args.model)
     
-    df_preds, df_metrics = run_inference(
+    df_preds, df_metrics, df_perf = run_inference(
         pipeline, 
         df, 
         context_len_hours=args.context_days * 24, 
@@ -112,12 +141,16 @@ def main():
     
     preds_path = os.path.join(args.output_dir, f"{args.city}_predictions.csv")
     metrics_path = os.path.join(args.output_dir, f"{args.city}_metrics.csv")
+    perf_path = os.path.join(args.output_dir, f"{args.city}_performance.csv")
     
     df_preds.to_csv(preds_path, index=False)
     df_metrics.to_csv(metrics_path, index=False)
+    df_perf.to_csv(perf_path, index=False)
     
     logger.info(f"Saved predictions to {preds_path}")
     logger.info(f"Saved metrics to {metrics_path}")
+    logger.info(f"Saved performance to {perf_path}")
+    logger.info(f"Avg Latency: {df_perf['latency_sec'].mean():.4f}s | Avg Throughput: {df_perf['throughput_preds_per_sec'].mean():.2f} preds/sec")
 
 if __name__ == "__main__":
     main()
