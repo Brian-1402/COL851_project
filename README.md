@@ -24,3 +24,27 @@
 ### Grafana
 - Runs at http://localhost:3000 (admin/grafanaForNow)
 - Windows service name: `grafana`
+
+### Pi sync
+- at project dir in local machine, run:
+```bash
+rsync -avPHz --exclude={'.git','.venv','__pycache__'} ./ pi@pi851:~/COL851_project/
+```
+#### Get back pi results
+- at project dir in local machine, run:
+```bash
+rsync -avPHz pi@pi851:~/COL851_project/outputs/ ./pi_outputs/
+```
+
+#### SSH
+```bash
+ssh pi@pi851
+# or if tailscale inactive, this might work when everyone in phone hotspot
+ssh pi@10.234.194.8
+```
+
+### Zip code
+- at project dir in local machine, run:
+```bash
+zip -r COL851_project.zip . -x '*.git*' -x '*__pycache__*' -x '*.venv*'
+```

@@ -73,7 +73,7 @@ def get_cpu_temperature():
         
     return np.nan
 
-def run_inference(pipeline, df, context_len_hours, horizon_hours):
+def run_inference(pipeline, df, context_len_hours, horizon_hours, dry_run=False):
     start_time = time.time()
     
     # --- Process Monitor Setup ---
@@ -89,7 +89,7 @@ def run_inference(pipeline, df, context_len_hours, horizon_hours):
     preds_data = []   
     perf_data = []
 
-    logger.info(f"Starting inference... Series len: {total}, Context: {context_len_hours}, Horizon: {horizon_hours}")
+    logger.info(f"Starting inference... Series len: {total}, Context: {context_len_hours}, Horizon: {horizon_hours}, Dry Run: {dry_run}")
 
     for i in tqdm(range(context_len_hours, total - horizon_hours, step)):
         context = series[i - context_len_hours : i]
@@ -98,7 +98,13 @@ def run_inference(pipeline, df, context_len_hours, horizon_hours):
         
         # Performance measurement
         t_start = time.perf_counter()
-        pred_window = forecast(pipeline, context, horizon_hours)
+        
+        if dry_run:
+            # Skip actual forecasting, use ground truth as prediction
+            pred_window = true_window
+        else:
+            pred_window = forecast(pipeline, context, horizon_hours)
+            
         t_end = time.perf_counter()
         
         # --- Capture Process Metrics ---
@@ -162,6 +168,7 @@ def main():
     parser.add_argument("--context_days", type=int, default=DEFAULTS["context_days"], help="Context length in days")
     parser.add_argument("--horizon_hours", type=int, default=DEFAULTS["horizon_hours"], help="Forecast horizon in hours")
     parser.add_argument("--output_dir", type=str, default=DEFAULTS["output_dir"], help="Directory to save CSV results")
+    parser.add_argument("--dry_run", action="store_true", help="Run without model inference (uses ground truth as prediction)")
     
     args = parser.parse_args()
     
@@ -179,13 +186,18 @@ def main():
     logger.info(f"Loading data from {args.file}")
     df = pd.read_csv(args.file, parse_dates=["From Date"])
     
-    pipeline = load_pipeline(args.model)
+    pipeline = None
+    if args.dry_run:
+        logger.info("Dry run enabled: Skipping model loading.")
+    else:
+        pipeline = load_pipeline(args.model)
     
     df_preds, df_metrics, df_perf = run_inference(
         pipeline, 
         df, 
         context_len_hours=args.context_days * 24, 
-        horizon_hours=args.horizon_hours
+        horizon_hours=args.horizon_hours,
+        dry_run=args.dry_run
     )
     
     preds_path = os.path.join(args.output_dir, f"{args.city}_predictions.csv")

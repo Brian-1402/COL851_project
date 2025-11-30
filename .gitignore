@@ -11,8 +11,10 @@ wheels/
 
 *.csv
 # *.png
+*.zip
 data/
 .vscode/
 outputs_perf/
+pi_outputs/
 outputs/
 TODO.md
