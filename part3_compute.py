@@ -9,7 +9,7 @@ Input:
 Outputs (saved to ./outputs/part3/):
     1. patna_predictions.csv  - [timestamp, ground_truth, forecast]
     2. patna_metrics.csv      - [window_start, rmse]
-    3. patna_performance.csv  - [window_start, latency_sec, throughput_preds_per_sec, cpu_util_pct, ram_util_mb]
+    3. patna_performance.csv  - [window_start, latency_sec, throughput_preds_per_sec, cpu_util_pct, ram_util_mb, cpu_temp_c(empty if WSL)]
     4. log/                   - Execution logs
 """
 import argparse
@@ -41,13 +41,43 @@ def forecast(pipeline, context, horizon):
     _, mean = pipeline.predict_quantiles(context_tensor, prediction_length=horizon, quantile_levels=[0.5])
     return mean.squeeze().numpy()
 
+def get_cpu_temperature():
+    """
+    Attempts to get CPU temperature. 
+    Works on Raspberry Pi and native Linux.
+    Returns np.nan if running on WSL or unsupported systems.
+    """
+    try:
+        # Method 1: psutil (Generic Linux)
+        temps = psutil.sensors_temperatures()
+        if temps:
+            # 'cpu_thermal' is standard for Pi
+            if 'cpu_thermal' in temps:
+                return temps['cpu_thermal'][0].current
+            # 'coretemp' is common for Intel/AMD Linux
+            elif 'coretemp' in temps:
+                return temps['coretemp'][0].current
+            # Fallback: take the first available sensor
+            for name, entries in temps.items():
+                return entries[0].current
+                
+        # Method 2: Direct file read (Raspberry Pi specific fallback)
+        # Sometimes psutil misses this on minimal Pi OS versions
+        if os.path.exists("/sys/class/thermal/thermal_zone0/temp"):
+            with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+                # Value is in millidegrees Celsius
+                return float(f.read().strip()) / 1000.0
+                
+    except Exception:
+        pass
+        
+    return np.nan
+
 def run_inference(pipeline, df, context_len_hours, horizon_hours):
     start_time = time.time()
     
     # --- Process Monitor Setup ---
-    # We target the specific PID of this Python script
     current_process = psutil.Process(os.getpid())
-    # First call initializes the counter; subsequent calls return avg usage since last call
     current_process.cpu_percent(interval=None)
     
     series = df["calibPM"].astype(float).to_numpy()
@@ -78,8 +108,10 @@ def run_inference(pipeline, df, context_len_hours, horizon_hours):
         # RSS (Resident Set Size): Actual physical memory used by the process
         ram_util_mb = current_process.memory_info().rss / (1024 * 1024)
         
+        # --- Capture System Temp ---
+        cpu_temp = get_cpu_temperature()
+        
         latency = t_end - t_start
-        # Throughput as instances (prediction windows) per second
         throughput = 1.0 / latency if latency > 0 else 0.0
 
         perf_data.append({
@@ -87,7 +119,8 @@ def run_inference(pipeline, df, context_len_hours, horizon_hours):
             "latency_sec": latency,
             "throughput_preds_per_sec": throughput,
             "cpu_util_pct": cpu_util,
-            "ram_util_mb": ram_util_mb
+            "ram_util_mb": ram_util_mb,
+            "cpu_temp_c": cpu_temp
         })
 
         window_rmse = np.sqrt(mean_squared_error(true_window, pred_window))
@@ -168,7 +201,12 @@ def main():
     logger.info(f"Saved performance to {perf_path}")
     
     logger.info(f"Avg Latency: {df_perf['latency_sec'].mean():.4f}s | Avg Throughput: {df_perf['throughput_preds_per_sec'].mean():.2f} preds/sec")
-    logger.info(f"Avg Process CPU: {df_perf['cpu_util_pct'].mean():.1f}% | Avg Process RAM: {df_perf['ram_util_mb'].mean():.1f} MB")
+    
+    # Handle NaN in logs for temperature
+    avg_temp = df_perf['cpu_temp_c'].mean()
+    temp_str = f"{avg_temp:.1f}°C" if not np.isnan(avg_temp) else "N/A (WSL/Virtual)"
+    
+    logger.info(f"Avg Process CPU: {df_perf['cpu_util_pct'].mean():.1f}% | Avg Process RAM: {df_perf['ram_util_mb'].mean():.1f} MB | Avg Temp: {temp_str}")
 
 if __name__ == "__main__":
     main()
