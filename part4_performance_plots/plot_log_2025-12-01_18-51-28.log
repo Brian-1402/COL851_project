@@ -1,0 +1,6 @@
+2025-12-01 18:51:28 | INFO     | Loading data from ./pi_outputs/part4/patna_performance.csv...
+2025-12-01 18:51:28 | INFO     | Total cumulative inference time: 643.51 seconds
+2025-12-01 18:51:29 | INFO     | Saved CPU plot to part4_performance_plots/pi_patna_cpu_util.png
+2025-12-01 18:51:29 | INFO     | Saved RAM plot to part4_performance_plots/pi_patna_ram_util.png
+2025-12-01 18:51:29 | INFO     | Saved Temperature plot to part4_performance_plots/pi_patna_cpu_temp.png
+2025-12-01 18:51:29 | INFO     | All plots generated successfully.

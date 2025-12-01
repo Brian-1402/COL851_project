@@ -1,0 +1,6 @@
+2025-12-01 19:02:23 | INFO     | Loading data from ./outputs/part3/patna_performance.csv...
+2025-12-01 19:02:23 | INFO     | Total cumulative inference time: 26.88 seconds
+2025-12-01 19:02:23 | INFO     | Saved CPU plot to part3_performance_plots/laptop_patna_cpu_util.png
+2025-12-01 19:02:23 | INFO     | Saved RAM plot to part3_performance_plots/laptop_patna_ram_util.png
+2025-12-01 19:02:23 | INFO     | Temperature column exists but is empty (Part 3 Laptop data?). Skipping Temp plot.
+2025-12-01 19:02:23 | INFO     | All plots generated successfully.

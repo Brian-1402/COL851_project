@@ -1,0 +1,9 @@
+2025-11-30 23:03:48 | INFO     | Loading data from df_patna_covariates.csv
+2025-11-30 23:03:48 | INFO     | Loading amazon/chronos-bolt-small on cpu...
+2025-11-30 23:03:50 | INFO     | Starting inference... Series len: 4416, Context: 96, Horizon: 4, Dry Run: False
+2025-11-30 23:04:18 | INFO     | Inference completed in 0.47 min.
+2025-11-30 23:04:18 | INFO     | Saved predictions to outputs/part3/patna_predictions.csv
+2025-11-30 23:04:18 | INFO     | Saved metrics to outputs/part3/patna_metrics.csv
+2025-11-30 23:04:18 | INFO     | Saved performance to outputs/part3/patna_performance.csv
+2025-11-30 23:04:18 | INFO     | Avg Latency: 0.0249s | Avg Throughput: 41.40 preds/sec
+2025-11-30 23:04:18 | INFO     | Avg Process CPU: 599.0% | Avg Process RAM: 920.7 MB | Avg Temp: N/A (WSL/Virtual)

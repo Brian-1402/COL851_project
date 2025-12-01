@@ -1,0 +1,6 @@
+2025-11-30 23:04:55 | INFO     | No preds_file specified, using default: outputs/part3/patna_predictions.csv
+2025-11-30 23:04:55 | INFO     | No metrics_file specified, using default: outputs/part3/patna_metrics.csv
+2025-11-30 23:04:55 | INFO     | Loading CSV data...
+2025-11-30 23:04:55 | INFO     | Generating plots for patna with bucket size 24h...
+2025-11-30 23:04:55 | INFO     | Saved CDF plot to outputs/part3/patna_rmse_cdf.png
+2025-11-30 23:04:55 | INFO     | Saved Time-Series plot to outputs/part3/patna_forecast_analysis_24h.png
